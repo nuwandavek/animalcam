@@ -38,7 +38,7 @@ def test_luna_structured_request_and_response(settings, observation, monkeypatch
             {"type": "message", "content": [{"type": "output_text", "text": json.dumps(observation)}]}]})
     real_client = httpx.Client
     monkeypatch.setattr(vision.httpx, "Client", lambda **kw: real_client(transport=httpx.MockTransport(handler)))
-    monkeypatch.setattr(vision, "image_data", lambda _: "data:image/jpeg;base64,test")
+    monkeypatch.setattr(vision, "image_data", lambda *args: "data:image/jpeg;base64,test")
     assert vision.analyze(None, settings.cams()[0], observation, settings) == observation
 
 
@@ -46,7 +46,7 @@ def test_incomplete_model_output_is_error(settings, monkeypatch):
     real_client = httpx.Client
     transport = httpx.MockTransport(lambda _: httpx.Response(200, json={"status": "incomplete", "output": []}))
     monkeypatch.setattr(vision.httpx, "Client", lambda **kw: real_client(transport=transport))
-    monkeypatch.setattr(vision, "image_data", lambda _: "data:image/jpeg;base64,test")
+    monkeypatch.setattr(vision, "image_data", lambda *args: "data:image/jpeg;base64,test")
     with pytest.raises(ValueError, match="incomplete"):
         vision.analyze(None, settings.cams()[0], None, settings)
 
@@ -96,7 +96,7 @@ def fake_grab(cam, path):
 def test_run_persists_and_uses_previous_observation(settings, observation, monkeypatch):
     calls = []
     monkeypatch.setattr(runner, "grab", fake_grab)
-    monkeypatch.setattr(runner, "analyze", lambda frame, cam, previous, cfg: calls.append(previous) or observation)
+    monkeypatch.setattr(runner, "analyze", lambda frame, cam, previous, cfg, **kwargs: calls.append(previous) or observation)
     assert runner.run_once(settings)[0]["status"] == "ok"
     assert runner.run_once(settings)[0]["status"] == "ok"
     store = Store(settings.state_dir)
@@ -107,7 +107,7 @@ def test_run_persists_and_uses_previous_observation(settings, observation, monke
 
 def test_dry_run_leaves_no_state(settings, observation, monkeypatch, capsys):
     monkeypatch.setattr(runner, "grab", fake_grab)
-    monkeypatch.setattr(runner, "analyze", lambda *args: observation)
+    monkeypatch.setattr(runner, "analyze", lambda *args, **kwargs: observation)
     runner.run_once(settings, dry_run=True)
     assert not settings.state_dir.exists()
     assert json.loads(capsys.readouterr().out)["result"]["animals"][0]["group"] == "bird"
@@ -124,7 +124,7 @@ url = "https://www.youtube.com/watch?v=other"
         if cam.id == "waterhole": raise Offline("Stream ended")
         fake_grab(cam, path)
     monkeypatch.setattr(runner, "grab", grab)
-    monkeypatch.setattr(runner, "analyze", lambda *args: observation)
+    monkeypatch.setattr(runner, "analyze", lambda *args, **kwargs: observation)
     results = runner.run_once(settings)
     assert [r["status"] for r in results] == ["offline", "ok"]
     assert Store(settings.state_dir).list(status="offline")["total"] == 1
@@ -133,7 +133,7 @@ url = "https://www.youtube.com/watch?v=other"
 def test_alert_failure_preserves_analysis(settings, observation, monkeypatch):
     settings.backend = "ntfy"
     monkeypatch.setattr(runner, "grab", fake_grab)
-    monkeypatch.setattr(runner, "analyze", lambda *args: observation)
+    monkeypatch.setattr(runner, "analyze", lambda *args, **kwargs: observation)
     def fail(*args): raise ValueError("Notification unavailable")
     monkeypatch.setattr(runner.alert, "send", fail)
     runner.run_once(settings)
@@ -146,7 +146,7 @@ def test_consecutive_identical_scenes_send_only_one_alert(settings, observation,
     settings.backend = "ntfy"
     sent = []
     monkeypatch.setattr(runner, "grab", fake_grab)
-    monkeypatch.setattr(runner, "analyze", lambda *args: observation)
+    monkeypatch.setattr(runner, "analyze", lambda *args, **kwargs: observation)
     monkeypatch.setattr(runner.alert, "send", lambda *args: sent.append(args[1]))
     runner.run_once(settings)
     runner.run_once(settings)

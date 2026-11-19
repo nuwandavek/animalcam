@@ -32,6 +32,7 @@ class Settings:
     user: str
     schedule_enabled: bool
     run_on_start: bool
+    image_width: int = 960
 
     @classmethod
     def load(cls):
@@ -51,11 +52,14 @@ class Settings:
             os.getenv("DASHBOARD_USER", "animalcam"),
             os.getenv("ANIMALCAM_SCHEDULE_ENABLED", "1") == "1",
             os.getenv("ANIMALCAM_RUN_ON_START", "1") == "1",
+            int(os.getenv("ANIMALCAM_IMAGE_WIDTH", "960")),
         )
         if s.interval < 10 or not 0 <= s.threshold <= 10 or s.cooldown < 0 or s.retention_days < 0:
             raise ValueError("Interval must be >=10 min, threshold 0–10, cooldown/retention >=0")
         if s.backend not in {"none", "ntfy", "discord"}:
             raise ValueError("ALERT_BACKEND must be none, ntfy, or discord")
+        if not 320 <= s.image_width <= 1920:
+            raise ValueError("ANIMALCAM_IMAGE_WIDTH must be between 320 and 1920")
         return s
 
     def cams(self):

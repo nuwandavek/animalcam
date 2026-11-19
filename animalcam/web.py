@@ -10,6 +10,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, ConfigDict
 
 from .runner import Busy, Worker
+from .facts import FactWorker
 from .store import Store
 
 STATIC = Path(__file__).parent / "static"
@@ -20,9 +21,10 @@ class RunRequest(BaseModel):
     cam_id: str | None = None
 
 
-def create_app(settings, worker=None):
+def create_app(settings, worker=None, fact_worker=None):
     store = Store(settings.state_dir)
     worker = worker or Worker(settings)
+    fact_worker = fact_worker or FactWorker(settings)
     basic = HTTPBasic(auto_error=False)
 
     def authorize(credentials: HTTPBasicCredentials | None = Depends(basic)):
@@ -35,7 +37,9 @@ def create_app(settings, worker=None):
     @asynccontextmanager
     async def lifespan(app):
         worker.start()
+        fact_worker.start()
         yield
+        fact_worker.stop()
         worker.stop()
 
     app = FastAPI(title="animalcam", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -67,7 +71,8 @@ def create_app(settings, worker=None):
         from dataclasses import asdict
         return {"worker": worker.snapshot(), "cams": [asdict(c) for c in settings.cams()],
                 "species": store.species(), "model": settings.model, "interval_min": settings.interval,
-                "configured": bool(settings.api_key)}
+                "configured": bool(settings.api_key), "costs": store.cost_summary(),
+                "facts_revision": store.facts_revision()}
 
     @app.get("/api/checks", dependencies=[Depends(authorize)])
     def checks(cam: str | None = None, species: str | None = None, group: str | None = None,
@@ -80,6 +85,10 @@ def create_app(settings, worker=None):
         return store.list(cam=cam, species=species, group=group, interesting=interesting,
                           animals=animals, status=status, date_from=date_from, date_to=date_to,
                           limit=limit, offset=offset)
+
+    @app.get("/api/highlight", dependencies=[Depends(authorize)])
+    def highlight(exclude_id: int | None = Query(None, ge=1)):
+        return store.highlight(exclude_id)
 
     @app.get("/api/checks/{check_id}", dependencies=[Depends(authorize)])
     def detail(check_id: int):

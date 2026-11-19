@@ -60,7 +60,11 @@ Invalid/incomplete responses become errors rather than fabricated observations.
 
 ## Dashboard
 
-- Paginated image gallery, newest first.
+- Compact paginated image gallery, newest first, with 4–5 images per row on wide screens.
+- Animals-or-birds filter on by default; descriptions appear in the detail view.
+- One random cool archive image above the filters. A shuffle button replaces it with a
+  different qualifying image when possible. Favor high scores, abundance, species variety,
+  and predators; require confident wildlife and an available image. Hide when no frames qualify.
 - Filters: camera, species, UTC date range, status, interesting, animals present, birds.
 - Detail: original image, camera-local time, species/counts/confidence/behaviors,
   events, reason, source stream, full saved JSON.
@@ -73,9 +77,12 @@ Invalid/incomplete responses become errors rather than fabricated observations.
 
 - Fresh yt-dlp resolution on every check, `is_live` check; no thumbnails.
 - Best available video URL; extraction and ffmpeg capture have hard timeouts.
-- Full-resolution original retained, max 1280 px wide JPEG sent to the model.
+- Full-resolution original retained, max 960 px wide JPEG (configurable) sent to the model.
 - Capture day and night. Optional `YTDLP_COOKIES`.
-- SQLite WAL mode; camera/time indexes. All images kept by default.
+- SQLite WAL mode, with three tables: checks, llm_calls, and species_facts.
+- Per-call token/search usage and estimated costs; historical estimates are explicitly marked.
+- Cached sourced facts are researched automatically for new confidently identified species.
+- Camera/time indexes. All images kept by default.
 - Optional retention deletes only old empty, unalerted images, preserving their metadata.
 - Camera failures are independent. Analysis failures retain captured frames;
   alert failures retain successful analysis.
@@ -113,7 +120,7 @@ The 1920×1080 night frame showed an empty, floodlit waterhole. The YouTube chan
 thumbnail was a static promo image and must not be used. Constrained
 `best[height<=720]` selection failed; use default extraction instead.
 
-Cloud-IP access is unverified. YouTube bot checks can affect cloud hosts; cookies may
+Cloud-IP behavior depends on the host. YouTube bot checks can affect cloud hosts; cookies may
 help but are not guaranteed. Keep use personal and low frequency, with a private dashboard.
 
 ## Verification status
@@ -123,7 +130,6 @@ context, bird/species/date filters, retention, offline isolation, dry runs, aler
 and failure behavior, worker serialization, authentication, cross-origin run rejection,
 and image-path containment. ffmpeg resizing was exercised on a synthetic test image.
 
-Still verify on the deployment host: live YouTube capture, a real Luna vision response,
-Docker build/run, amd64/arm64 build availability, browser appearance/interactions,
-and a real notification once a destination is configured. Development environment
-restrictions blocked external API network access, Docker daemon access, and local port binding.
+Live YouTube capture and Luna observations have run in Docker on the local host.
+Automated tests also cover token costs, historical backfill, species fact caching, source validation,
+retry deferral, and search fees. Notifications still need a configured destination for an end-to-end test.

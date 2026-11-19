@@ -1,6 +1,8 @@
 const $ = id => document.getElementById(id);
 const form = $('filters');
 let rows = [], total = 0, appState, generation = 0, lastFinished, pendingRequest = false;
+let highlightRow = null, highlightLoading = false;
+let lastFactsRevision;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -20,6 +22,20 @@ function error(message = '') { $('error').textContent = message; $('error').hidd
 function shortTime(at, zone) {
   return new Date(at).toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', timeZone:zone});
 }
+function money(value) {
+  return new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', minimumFractionDigits:2,
+    maximumFractionDigits:value > 0 && value < .01 ? 6 : 4}).format(value);
+}
+function renderFact(fact) {
+  $('highlight-fact').hidden = !fact;
+  $('highlight').classList.toggle('has-fact', Boolean(fact));
+  if (fact) {
+    $('fact-title').textContent = fact.title;
+    $('fact-text').textContent = fact.text;
+    $('fact-source').textContent = fact.source;
+    $('fact-source').href = fact.url;
+  }
+}
 function animalTitle(result) {
   if (!result?.animals?.length) return 'A quiet moment';
   return result.animals.map(a => `${a.count} ${a.species}`).join(' · ');
@@ -31,12 +47,12 @@ function icon(name) {
   path.setAttribute('d', name === 'star' ? 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z' : 'M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5');
   svg.append(path); return svg;
 }
-function card(row, featured = false) {
-  const button = el('button', featured ? 'observation featured' : 'observation'); button.type = 'button';
+function card(row) {
+  const button = el('button', 'observation'); button.type = 'button';
   const media = el('div', 'image-wrap');
   if (row.image_url) {
     const img = el('img'); img.src = row.image_url; img.alt = row.result?.scene || `Frame from ${row.cam_name}`;
-    img.loading = featured ? 'eager' : 'lazy'; img.width = 1280; img.height = 720;
+    img.loading = 'lazy'; img.width = 1280; img.height = 720;
     img.addEventListener('error', () => { media.replaceChildren(el('div', 'no-image', 'Image unavailable')); });
     media.append(img);
   } else {
@@ -45,9 +61,9 @@ function card(row, featured = false) {
     media.append(missing);
   }
   if (row.interesting) {
-    const tag = el('span', 'tag'); tag.append(icon('star'), el('span', '', 'Interesting')); media.append(tag);
+    const tag = el('span', 'tag'); tag.title = 'New or noteworthy compared with the previous check';
+    tag.append(icon('star'), el('span', '', 'New sighting')); media.append(tag);
   }
-  if (featured) media.append(el('span', 'latest-label', 'Latest capture'));
   if (row.image_url) {
     const inspect = el('span', 'inspect'); inspect.setAttribute('aria-hidden', 'true');
     inspect.append(icon('expand')); media.append(inspect);
@@ -57,8 +73,8 @@ function card(row, featured = false) {
   const time = el('time', '', shortTime(row.checked_at_utc, row.timezone)); time.dateTime = row.checked_at_utc;
   time.title = `${row.checked_at_utc} · ${row.timezone}`;
   meta.append(el('span', 'cam-caption', row.cam_name), time);
-  info.append(meta, el('h2', '', row.result ? animalTitle(row.result) : row.status === 'offline' ? 'Camera offline' : 'Check interrupted'));
-  info.append(el('p', row.error ? 'card-error' : '', row.error || row.result?.scene || 'No observation available.'));
+  info.append(el('h2', '', row.result ? animalTitle(row.result) : row.status === 'offline' ? 'Camera offline' : 'Check interrupted'), meta);
+  if (row.error) info.append(el('p', 'card-error', row.error));
   button.append(media, info);
   button.addEventListener('click', () => showDetail(row));
   return button;
@@ -76,14 +92,14 @@ async function load(more = false) {
     if (requestId !== generation) return;
     rows = more ? [...rows, ...data.checks] : data.checks; total = data.total;
     if (!more) $('gallery').replaceChildren();
-    data.checks.forEach((row, i) => $('gallery').append(card(row, !more && i === 0 && row.image_url && row.status === 'ok')));
-    $('gallery').classList.toggle('single', rows.length === 1);
+    data.checks.forEach(row => $('gallery').append(card(row)));
     $('count').textContent = `${total.toLocaleString()} ${total === 1 ? 'check' : 'checks'}`;
     $('empty').hidden = total > 0;
-    const filtered = [...new FormData(form)].some(([, v]) => v);
-    $('empty').querySelector('h2').textContent = filtered ? 'Nothing in this view. Yet.' : "Let's see who's out there.";
+    const filtered = [...new FormData(form)].some(([key, v]) => v && key !== 'animals');
+    const animalsOnly = form.elements.animals.checked && !filtered;
+    $('empty').querySelector('h2').textContent = filtered ? 'Nothing in this view. Yet.' : animalsOnly ? 'No wildlife sightings yet.' : "Let's see who's out there.";
     $('empty').querySelector('.eyebrow').textContent = filtered ? 'Keep looking' : 'Ready when you are';
-    $('empty-copy').textContent = filtered ? 'Try another species, camera, or date range.' : 'Capture your first frame. Big cats, little birds, and everything in between.';
+    $('empty-copy').textContent = filtered ? 'Try another species, camera, or date range.' : animalsOnly ? 'Capture another frame, or turn off Animals or birds to see every check.' : 'Capture your first frame. Big cats, little birds, and everything in between.';
     $('empty-run').dataset.action = filtered ? 'clear' : 'run';
     $('empty-run').firstChild.textContent = filtered ? 'Reset filters ' : 'Capture a frame ';
     $('empty-run').disabled = !filtered && $('run').disabled;
@@ -91,6 +107,42 @@ async function load(more = false) {
     error();
   } catch (e) { if (requestId === generation) error(e.message); }
   finally { if (requestId === generation) $('more').disabled = false; }
+}
+async function loadHighlight(shuffle = false) {
+  if (highlightLoading) return;
+  highlightLoading = true;
+  $('highlight-shuffle').disabled = true;
+  $('highlight-shuffle-label').textContent = 'Finding a sighting…';
+  $('highlight-error').hidden = true;
+  $('highlight').setAttribute('aria-busy', 'true');
+  try {
+    const exclude = shuffle && highlightRow ? `?exclude_id=${highlightRow.id}` : '';
+    const data = await api(`/api/highlight${exclude}`);
+    highlightRow = data.check;
+    $('highlight').hidden = !highlightRow;
+    if (!highlightRow) return;
+    const row = highlightRow;
+    $('highlight-image').src = row.image_url;
+    $('highlight-image').alt = row.result.scene;
+    const selection = data.selection;
+    $('highlight-facts').textContent = `${selection.animal_count} ${selection.animal_count === 1 ? 'animal' : 'animals'}${selection.species_count > 1 ? ` · ${selection.species_count} species` : ''}`;
+    $('highlight-title').textContent = animalTitle(row.result);
+    $('highlight-meta').textContent = `${row.cam_name} · ${shortTime(row.checked_at_utc, row.timezone)} · ${row.timezone}`;
+    $('highlight-reason').textContent = selection.reason;
+    renderFact(data.fact);
+    $('highlight-open').setAttribute('aria-label', `Open sighting: ${animalTitle(row.result)}`);
+    $('highlight-note').textContent = data.has_alternatives ? '' : 'Your first highlight. More will appear as your cameras capture wildlife.';
+    $('highlight-note').hidden = data.has_alternatives;
+    $('highlight-shuffle').disabled = !data.has_alternatives;
+  } catch (e) {
+    $('highlight-error').textContent = `Could not load a cool sighting: ${e.message}`;
+    $('highlight-error').hidden = false;
+    $('highlight-shuffle').disabled = false;
+  } finally {
+    highlightLoading = false;
+    $('highlight-shuffle-label').textContent = 'Random cool sighting';
+    $('highlight').setAttribute('aria-busy', 'false');
+  }
 }
 function options(id, items, label) {
   const select = $(id), selected = select.value;
@@ -147,11 +199,26 @@ async function refreshState() {
     w.error ? w.error : w.last_finished_at ? `Last check finished ${shortTime(w.last_finished_at)}.` : '';
   $('schedule').textContent = w.schedule_enabled ? `Every ${appState.interval_min} min${w.next_run_at ? ` · next ${new Date(w.next_run_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}` : ''}` : 'Manual checks · schedule paused';
   $('model').textContent = `${appState.cams.length} ${appState.cams.length === 1 ? 'camera' : 'cameras'} · ${appState.model}`;
+  const costs = appState.costs;
+  if (costs) {
+    $('cost-total').textContent = `${costs.backfilled_calls ? '≈ ' : ''}${money(costs.total_usd)}`;
+    $('cost-meta').textContent = `${costs.calls} calls${costs.backfilled_calls ? ` · ${costs.backfilled_calls} backfilled` : ''}${costs.unpriced_calls ? ` · ${costs.unpriced_calls} unpriced` : ''}`;
+  }
   renderCameras(); syncViews();
-  if (lastFinished !== undefined && lastFinished !== w.last_finished_at) await load();
+  if (lastFactsRevision !== appState.facts_revision && highlightRow) {
+    const currentId = highlightRow.id;
+    const detail = await api(`/api/checks/${currentId}`);
+    if (highlightRow.id === currentId) renderFact(detail.fact);
+  }
+  lastFactsRevision = appState.facts_revision;
+  if (lastFinished !== undefined && lastFinished !== w.last_finished_at) {
+    await load();
+    await loadHighlight();
+  }
   lastFinished = w.last_finished_at;
 }
-function showDetail(row) {
+async function showDetail(row) {
+  try { row = await api(`/api/checks/${row.id}`); } catch { /* Existing gallery data can still be inspected. */ }
   const content = $('detail-content'); content.replaceChildren();
   content.classList.toggle('no-detail-image', !row.image_url);
   if (row.image_url) {
@@ -166,7 +233,7 @@ function showDetail(row) {
   if (result) {
     body.append(el('p', 'scene', result.scene));
     const reason = el('div', 'reason', result.interesting_reason);
-    reason.append(el('small', '', `${result.interesting ? 'Interesting' : 'Routine observation'} · score ${result.interesting_score}/10${row.alerted ? ' · alert sent' : ''}`));
+    reason.append(el('small', '', `${result.interesting ? 'New or noteworthy' : 'Routine observation'} · novelty ${result.interesting_score}/10${row.alerted ? ' · alert sent' : ''}`));
     body.append(reason, el('h3', '', 'Wildlife observed'));
     if (!result.animals.length) body.append(el('p', 'detail-meta', 'No animals confidently identified in this frame.'));
     for (const a of result.animals) {
@@ -188,6 +255,13 @@ function showDetail(row) {
   const stream = el('a', '', 'Open live camera'); stream.href = row.url; stream.target = '_blank'; stream.rel = 'noopener noreferrer'; links.append(stream);
   if (row.image_url) { const original = el('a', '', 'View full image'); original.href = row.image_url; original.target = '_blank'; original.rel = 'noopener'; links.append(original); }
   body.append(links);
+  if (row.llm_calls?.length) {
+    body.append(el('h3', '', 'Luna usage'));
+    for (const call of row.llm_calls) {
+      body.append(el('p', 'call-cost', `${call.estimated_cost_usd === null ? 'Cost unavailable' : money(call.estimated_cost_usd)} · ${call.source === 'backfill' ? 'Approximate historical usage' : 'Reported token usage'}`));
+      body.append(el('p', 'detail-meta', `${call.input_tokens ?? 'Unknown'} input · ${call.cached_input_tokens ?? 0} cached · ${call.output_tokens ?? 'unknown'} output tokens · ${call.image_width}px image`));
+    }
+  }
   const raw = el('details'); raw.append(el('summary', '', 'Full saved record'), el('pre', '', JSON.stringify(row, null, 2))); body.append(raw);
   content.append(body); $('detail').showModal();
 }
@@ -221,6 +295,8 @@ $('copy-config').addEventListener('click', async () => {
   catch { $('copy-config').textContent = 'Select and copy the snippet above'; }
 });
 $('more').addEventListener('click', () => load(true));
+$('highlight-shuffle').addEventListener('click', () => loadHighlight(true));
+for (const id of ['highlight-open', 'highlight-view']) $(id).addEventListener('click', () => { if (highlightRow) showDetail(highlightRow); });
 $('run').addEventListener('click', async () => {
   pendingRequest = true; $('run').disabled = true;
   try {
@@ -233,4 +309,4 @@ async function poll() {
   try { await refreshState(); } catch (e) { error(`Cannot reach animalcam: ${e.message}`); }
   setTimeout(poll, appState?.worker.running || appState?.worker.queued ? 2000 : 10000);
 }
-load(); poll();
+load(); loadHighlight(); poll();

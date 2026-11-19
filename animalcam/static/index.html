@@ -22,16 +22,23 @@
       <div class="camera-heading"><p class="sidebar-label">Cameras</p><span id="camera-total" class="camera-total"></span></div>
       <div id="camera-list" class="camera-list"><p class="sidebar-loading">Loading cameras…</p></div>
       <button id="camera-guide" class="add-camera" type="button"><span aria-hidden="true">＋</span>Add a camera</button>
+      <div class="cost-summary" aria-label="Estimated API costs"><span class="cost-label">Estimated API spend</span><strong id="cost-total">$0.00</strong><span id="cost-meta">Loading usage…</span></div>
       <div class="sidebar-bottom"><span class="schedule-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span><div><p class="schedule-label">Capture schedule</p><p id="schedule">Connecting…</p></div></div>
     </aside>
     <div class="workspace">
       <header class="masthead"><div class="breadcrumb"><span>Your workspace</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg><strong>Field journal</strong></div><span id="connection" class="connection">Connecting</span></header>
       <main>
         <section class="journal-top" aria-labelledby="page-title">
-          <div><p class="eyebrow">A closer look at the wild</p><h1 id="page-title">Field journal<span class="title-dot">.</span></h1><p class="intro">Your captures. Their little adventures.</p></div>
+          <div><h1 id="page-title">Field journal<span class="title-dot">.</span></h1></div>
           <div class="run-controls"><button id="run" class="primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6 9.5 3h5L16 6h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3Z"/><circle cx="12" cy="13" r="4"/></svg><span id="run-label">Check now</span><span class="button-plus" aria-hidden="true">＋</span></button><p id="run-scope">All cameras</p></div>
         </section>
         <div id="run-status" class="run-status" role="status" aria-live="polite"></div>
+        <section id="highlight" class="highlight" aria-labelledby="highlight-title" hidden>
+          <button id="highlight-open" class="highlight-image" type="button" aria-label="Open featured sighting"><img id="highlight-image" alt="" width="1280" height="720"><span id="highlight-facts" class="highlight-facts"></span></button>
+          <div class="highlight-copy"><p class="eyebrow">A cool sighting · from your archive</p><h2 id="highlight-title"></h2><p id="highlight-meta" class="highlight-meta"></p><p id="highlight-reason" class="highlight-reason"></p><div class="highlight-actions"><button id="highlight-shuffle" class="shuffle-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h3c4 0 8 12 12 12h3m-4-4 4 4-4 4M3 18h3c2 0 4-3 6-6s4-6 6-6h3m-4-4 4 4-4 4"/></svg><span id="highlight-shuffle-label">Random cool sighting</span></button><button id="highlight-view" class="text-button" type="button">View frame</button></div><p id="highlight-note" class="highlight-note" role="status" hidden></p></div>
+          <aside id="highlight-fact" class="highlight-fact" aria-labelledby="fact-title" hidden><span class="fact-kicker">Did you know?</span><h3 id="fact-title"></h3><p id="fact-text"></p><a id="fact-source" target="_blank" rel="noopener noreferrer"></a></aside>
+        </section>
+        <p id="highlight-error" class="highlight-error" role="status" hidden></p>
         <section id="journal" aria-label="Observation gallery">
           <form id="filters" class="filters">
             <div class="filter-toolbar"><div class="filter-picks">
@@ -45,7 +52,7 @@
             </div>
             <div class="filter-bottom"><div class="toggles">
               <label class="toggle"><input type="checkbox" name="interesting" value="true"><span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8L10 2Z"/></svg>Interesting</span></label>
-              <label class="toggle"><input type="checkbox" name="animals" value="true"><span>Animals present</span></label>
+              <label class="toggle"><input type="checkbox" name="animals" value="true" checked><span>Animals or birds</span></label>
               <label class="toggle"><input type="checkbox" name="group" value="bird"><span>Birds</span></label>
               <button class="text-button" id="clear" type="button">Reset</button>
             </div><span id="count" class="result-count" aria-live="polite"></span></div>

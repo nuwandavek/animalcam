@@ -62,6 +62,9 @@ def run_once(settings, cam_id=None, *, dry_run=False, frame=None):
                 relative = f"frames/{cam.id}/{utcnow().strftime('%Y%m%dT%H%M%S%fZ')}-{uuid4().hex[:6]}.jpg"
                 destination = root / relative
                 result, check_id = None, None
+                call_ids = []
+                def record_call(call):
+                    call_ids.append(store.record_call(cam.id, call))
                 try:
                     if frame:
                         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -82,11 +85,13 @@ def run_once(settings, cam_id=None, *, dry_run=False, frame=None):
                         with closing(sqlite3.connect((settings.state_dir / "animalcam.db").as_uri() + "?mode=ro", uri=True)) as db:
                             row = db.execute("SELECT result_json FROM checks WHERE cam_id=? AND result_json IS NOT NULL ORDER BY id DESC LIMIT 1", (cam.id,)).fetchone()
                             previous = {"result": json.loads(row[0])} if row else None
-                    result = analyze(destination, cam, previous["result"] if previous else None, settings)
+                    result = analyze(destination, cam, previous["result"] if previous else None, settings,
+                                     record_call=record_call)
                     if dry_run:
                         print(json.dumps({"cam_id": cam.id, "timestamp": at, "url": cam.url, "result": result}, indent=2))
                     else:
                         check_id = store.insert(cam, at, "ok", relative, result, model=settings.model)
+                        store.link_calls(call_ids, check_id)
                         if settings.backend != "none" and alert.should_alert(result, store.latest(cam.id, alerted=True), at, settings):
                             try:
                                 alert.send(cam, result, destination, at, settings)
@@ -103,6 +108,7 @@ def run_once(settings, cam_id=None, *, dry_run=False, frame=None):
                     if not dry_run:
                         check_id = store.insert(cam, at, status, relative if destination.exists() else None,
                                                 result, error, settings.model)
+                        store.link_calls(call_ids, check_id)
                     log.warning("%s: %s: %s", cam.id, status, error)
                     summaries.append({"cam_id": cam.id, "status": status, "error": error, "id": check_id})
             if not dry_run:

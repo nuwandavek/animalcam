@@ -163,7 +163,7 @@ class Store:
             for animal in sorted(result["animals"], key=lambda a: a["confidence"], reverse=True):
                 if animal["confidence"] < .7:
                     continue
-                row = db.execute("SELECT title,fact AS text,source_name AS source,source_url AS url,verified_at_utc "
+                row = db.execute("SELECT species,title,fact AS text,source_name AS source,source_url AS url,verified_at_utc "
                                  "FROM species_facts WHERE species=? AND status='ready'",
                                  (animal["species"].strip().casefold(),)).fetchone()
                 if row:

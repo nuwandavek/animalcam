@@ -3,6 +3,61 @@ const form = $('filters');
 let rows = [], total = 0, appState, generation = 0, lastFinished, pendingRequest = false;
 let highlightRow = null, highlightLoading = false;
 let lastFactsRevision;
+let statsPeriod = 'day', statsRequest = 0, statsQuery = '', statsViews = [];
+
+function statsTooltip(_handler, event, _item, value) {
+  const tip = $('stats-tooltip');
+  tip.hidden = !value;
+  if (!value) return;
+  tip.textContent = Object.entries(value).map(([key, val]) => `${key}: ${val}`).join('\n');
+  tip.style.left = `${Math.max(8, Math.min(event.clientX+12, window.innerWidth-230))}px`;
+  tip.style.top = `${Math.max(8, Math.min(event.clientY+12, window.innerHeight-120))}px`;
+}
+async function drawStats(data) {
+  for (const view of statsViews) view.finalize();
+  statsViews = [];
+  const species = $('species-chart'), activity = $('activity-chart'), top = $('activity-top-chart');
+  species.replaceChildren(); activity.replaceChildren(); top.replaceChildren();
+  const heatWidth = Math.max(460, $('heatmap-scroll').clientWidth || 460);
+  $('species-empty').hidden = data.species.length > 0;
+  for (const [node, spec] of [
+    [species, AnimalCharts.speciesSpec(data.species, species.clientWidth || 320)],
+    [top, AnimalCharts.activityTopSpec(data.activity, heatWidth)],
+    [activity, AnimalCharts.activitySpec(data.activity, data.dates, heatWidth, data.bucket_labels)]
+  ]) {
+    if (node === species && !data.species.length) continue;
+    const view = new vega.View(vega.parse(spec, null, {ast:true}), {
+      expr:vega.expressionInterpreter, renderer:'svg', container:node, hover:true, tooltip:statsTooltip
+    });
+    statsViews.push(view);
+    await view.runAsync();
+  }
+}
+async function loadStats(force = false) {
+  const params = new URLSearchParams({period:statsPeriod});
+  if ($('cam').value) params.set('cam', $('cam').value);
+  const key = params.toString();
+  if (!force && statsQuery === key) return;
+  statsQuery = key;
+  const requestId = ++statsRequest;
+  $('stats-error').hidden = true;
+  $('stats').setAttribute('aria-busy', 'true');
+  try {
+    const data = await api(`/api/stats?${params}`);
+    if (requestId !== statsRequest) return;
+    const cam = appState?.cams.find(c => c.id === $('cam').value);
+    $('stats-scope').textContent = `${cam ? cam.name : 'All cameras'} · all history`;
+    $('stats-grain').textContent = `${{day:'Day',week:'Week starting',month:'Month'}[statsPeriod]} × hour`;
+    $('stats-diversity').textContent = `${data.species_count} species · frames`;
+    $('stats-total').textContent = `${data.wildlife_frames.toLocaleString()} wildlife frames / ${data.total_checks.toLocaleString()} analyzed · confident sightings only`;
+    await drawStats(data);
+  } catch (e) {
+    if (requestId === statsRequest) {
+      statsQuery = '';
+      $('stats-error').textContent = `Stats unavailable: ${e.message}`; $('stats-error').hidden = false;
+    }
+  } finally { if (requestId === statsRequest) $('stats').setAttribute('aria-busy', 'false'); }
+}
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -30,10 +85,16 @@ function renderFact(fact) {
   $('highlight-fact').hidden = !fact;
   $('highlight').classList.toggle('has-fact', Boolean(fact));
   if (fact) {
+    const changed = $('fact-title').textContent !== fact.title || $('fact-text').textContent !== fact.text;
+    $('fact-species').textContent = fact.species || 'Animal spotlight';
     $('fact-title').textContent = fact.title;
     $('fact-text').textContent = fact.text;
     $('fact-source').textContent = fact.source;
     $('fact-source').href = fact.url;
+    if (changed && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      $('fact-story').animate([{opacity:0, transform:'translateY(6px)'}, {opacity:1, transform:'translateY(0)'}],
+        {duration:340, easing:'cubic-bezier(.2,.7,.2,1)'});
+    }
   }
 }
 function animalTitle(result) {
@@ -120,6 +181,7 @@ async function loadHighlight(shuffle = false) {
     const data = await api(`/api/highlight${exclude}`);
     highlightRow = data.check;
     $('highlight').hidden = !highlightRow;
+    $('overview').classList.toggle('without-highlight', !highlightRow);
     if (!highlightRow) return;
     const row = highlightRow;
     $('highlight-image').src = row.image_url;
@@ -179,7 +241,7 @@ function renderCameras() {
     const copy = el('span', 'camera-copy');
     copy.append(el('span', 'camera-name', cam.name), el('span', 'camera-zone', cam.timezone.replaceAll('_', ' ')));
     button.append(el('span', 'camera-avatar', initials), copy);
-    button.addEventListener('click', () => { $('cam').value = cam.id; syncViews(); load(); });
+    button.addEventListener('click', () => { $('cam').value = cam.id; syncViews(); load(); loadStats(); });
     $('camera-list').append(button);
   }
 }
@@ -214,6 +276,7 @@ async function refreshState() {
   if (lastFinished !== undefined && lastFinished !== w.last_finished_at) {
     await load();
     await loadHighlight();
+    await loadStats(true);
   }
   lastFinished = w.last_finished_at;
 }
@@ -268,8 +331,8 @@ async function showDetail(row) {
 $('close').addEventListener('click', () => $('detail').close());
 $('detail').addEventListener('click', e => { if (e.target === $('detail')) { const rect = $('detail').getBoundingClientRect(); if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) $('detail').close(); } });
 form.addEventListener('submit', e => e.preventDefault());
-form.addEventListener('change', () => { syncViews(); load(); });
-function resetFilters() { form.reset(); syncViews(); load(); }
+form.addEventListener('change', () => { syncViews(); load(); loadStats(); });
+function resetFilters() { form.reset(); syncViews(); load(); loadStats(); }
 $('clear').addEventListener('click', resetFilters);
 $('filter-toggle').addEventListener('click', () => {
   const open = $('advanced-filters').hidden;
@@ -283,7 +346,7 @@ for (const button of document.querySelectorAll('[data-view]')) {
       form.elements.group.checked = button.dataset.view === 'birds';
       form.elements.animals.checked = false;
     }
-    syncViews(); load();
+    syncViews(); load(); loadStats();
   });
 }
 $('empty-run').addEventListener('click', () => $('empty-run').dataset.action === 'clear' ? resetFilters() : $('run').click());
@@ -309,4 +372,22 @@ async function poll() {
   try { await refreshState(); } catch (e) { error(`Cannot reach animalcam: ${e.message}`); }
   setTimeout(poll, appState?.worker.running || appState?.worker.queued ? 2000 : 10000);
 }
-load(); loadHighlight(); poll();
+for (const button of document.querySelectorAll('[data-period]')) {
+  button.addEventListener('click', () => {
+    statsPeriod = button.dataset.period;
+    for (const item of document.querySelectorAll('[data-period]')) {
+      const active = item === button; item.classList.toggle('active', active); item.setAttribute('aria-pressed', String(active));
+    }
+    loadStats();
+  });
+}
+let statsResize;
+let statsWidth = 0;
+new ResizeObserver(entries => {
+  const width = Math.round(entries[0].contentRect.width);
+  if (width === statsWidth) return;
+  statsWidth = width;
+  clearTimeout(statsResize);
+  statsResize = setTimeout(() => loadStats(true), 180);
+}).observe($('stats').parentElement);
+load(); loadHighlight(); loadStats(); poll();

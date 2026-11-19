@@ -6,6 +6,9 @@
   <meta name="theme-color" content="#f5f5f7">
   <title>animalcam · Field journal</title>
   <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/vega.min.js" defer></script>
+  <script src="/assets/vega-interpreter.min.js" defer></script>
+  <script src="/assets/charts.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </head>
 <body>
@@ -33,12 +36,27 @@
           <div class="run-controls"><button id="run" class="primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6 9.5 3h5L16 6h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3Z"/><circle cx="12" cy="13" r="4"/></svg><span id="run-label">Check now</span><span class="button-plus" aria-hidden="true">＋</span></button><p id="run-scope">All cameras</p></div>
         </section>
         <div id="run-status" class="run-status" role="status" aria-live="polite"></div>
+        <div id="overview" class="overview">
+        <div class="highlight-stack">
         <section id="highlight" class="highlight" aria-labelledby="highlight-title" hidden>
           <button id="highlight-open" class="highlight-image" type="button" aria-label="Open featured sighting"><img id="highlight-image" alt="" width="1280" height="720"><span id="highlight-facts" class="highlight-facts"></span></button>
+          <div class="highlight-details">
           <div class="highlight-copy"><p class="eyebrow">A cool sighting · from your archive</p><h2 id="highlight-title"></h2><p id="highlight-meta" class="highlight-meta"></p><p id="highlight-reason" class="highlight-reason"></p><div class="highlight-actions"><button id="highlight-shuffle" class="shuffle-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h3c4 0 8 12 12 12h3m-4-4 4 4-4 4M3 18h3c2 0 4-3 6-6s4-6 6-6h3m-4-4 4 4-4 4"/></svg><span id="highlight-shuffle-label">Random cool sighting</span></button><button id="highlight-view" class="text-button" type="button">View frame</button></div><p id="highlight-note" class="highlight-note" role="status" hidden></p></div>
-          <aside id="highlight-fact" class="highlight-fact" aria-labelledby="fact-title" hidden><span class="fact-kicker">Did you know?</span><h3 id="fact-title"></h3><p id="fact-text"></p><a id="fact-source" target="_blank" rel="noopener noreferrer"></a></aside>
+          <aside id="highlight-fact" class="highlight-fact" aria-labelledby="fact-title" hidden>
+            <div class="fact-heading"><svg class="fact-compass" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12"/><path d="m20 12-2 6-6 2 2-6 6-2ZM16 1v3m15 12h-3M16 31v-3M1 16h3"/></svg><span class="fact-kicker">Kiwi's field notes</span><span class="fact-heading-rule" aria-hidden="true"></span></div>
+            <div id="fact-story" class="fact-story"><img class="fact-mascot" src="/assets/kiwi-explorer.webp" alt="Kiwi the pug, your little wildlife explorer" width="320" height="320" loading="lazy"><span id="fact-species" class="fact-species">Animal spotlight</span><h3 id="fact-title"></h3><p id="fact-text"></p></div>
+            <div class="fact-source-line"><span class="fact-source-label">Field guide</span><a id="fact-source" target="_blank" rel="noopener noreferrer"></a></div>
+          </aside>
+          </div>
         </section>
         <p id="highlight-error" class="highlight-error" role="status" hidden></p>
+        </div>
+        <section id="stats" class="stats-section" aria-labelledby="stats-title">
+          <div class="stats-heading"><div><h2 id="stats-title">Wildlife activity</h2><span id="stats-scope" class="stats-scope">All cameras · all history</span></div><div class="stats-periods" role="group" aria-label="Statistics period"><button data-period="day" class="active" aria-pressed="true" type="button">Day</button><button data-period="week" aria-pressed="false" type="button">Week</button><button data-period="month" aria-pressed="false" type="button">Month</button></div></div>
+          <div class="stats-layout"><article class="species-panel"><div class="stat-chart-heading"><h3>Most spotted</h3><span id="stats-diversity"></span></div><div id="species-chart" class="stat-chart" aria-label="Top five species by frames seen, plus other species"></div><p id="species-empty" class="stat-empty" hidden>No wildlife sightings in this period yet.</p><p class="stat-caption">Frames containing each species. Repeat sightings count.</p></article><article class="activity-panel"><div class="stat-chart-heading"><h3 id="stats-grain">Day &amp; hour</h3><span>Camera-local time</span></div><div id="heatmap-scroll" class="heatmap-scroll" tabindex="0" aria-label="Scrollable activity heatmap"><div id="activity-top-chart" class="stat-chart heatmap-top" aria-label="Total sightings by hour"></div><div id="activity-chart" class="stat-chart" aria-label="Sightings by calendar bucket and hour, with bucket totals at the right"></div></div><div class="heatmap-legend"><span><i class="legend-none"></i>No data</span><span><i class="legend-empty"></i>No sightings</span><span class="heatmap-scale">Less<i></i><i></i><i></i><i></i><i></i>More</span></div></article></div>
+          <div class="stats-bottom"><span id="stats-total" role="status">Loading your field data…</span><span id="stats-error" role="alert" hidden></span></div>
+        </section>
+        </div>
         <section id="journal" aria-label="Observation gallery">
           <form id="filters" class="filters">
             <div class="filter-toolbar"><div class="filter-picks">
@@ -69,6 +87,7 @@
       </main>
     </div>
   </div>
+  <div id="stats-tooltip" class="stats-tooltip" role="tooltip" hidden></div>
   <dialog id="detail" class="detail-dialog" aria-labelledby="detail-title"><div class="detail-toolbar"><span class="eyebrow">Inside the frame</span><button id="close" class="close" aria-label="Close observation" type="button">✕</button></div><div id="detail-content"></div></dialog>
   <dialog id="camera-help" class="camera-dialog" aria-labelledby="camera-help-title"><div class="detail-toolbar"><span class="eyebrow">Grow your collection</span><button id="camera-help-close" class="close" aria-label="Close camera instructions" type="button">✕</button></div><div class="camera-help-body"><h2 id="camera-help-title">Another window<br>into the wild.</h2><p>Add an entry to <code>data/cams.toml</code> using a unique camera ID. It will appear here automatically.</p><pre id="camera-snippet">[[cam]]
 id = "my-new-camera"

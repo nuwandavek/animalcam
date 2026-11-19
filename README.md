@@ -33,8 +33,9 @@ docker run -d --name animalcam --init --restart unless-stopped \
 - Automatic checks every 15 minutes; **Check now** for a fresh capture.
 - Compact gallery, with **Animals or birds** selected by default. Filter by camera, species, date, birds, or new sightings.
 - **Random cool sighting** favors animal groups, multiple species, predators, and high-scoring moments. Shuffle picks another frame when available.
+- Vega charts rank the top five species (plus others) and show an hourly sighting heatmap, across the full history, grouped by day, Monday-start week, or month in camera-local time. The scrollable heatmap includes hourly totals above and bucket totals on the right. Counts represent frames, not unique animals.
 - Click a frame for the full image, counts, confidence, behaviors, events, model JSON, and call cost.
-- **Did you know?** facts are cached in SQLite. A new confidently identified species triggers one background Luna web-search lookup against trusted wildlife sources. Facts, source links, and verification dates are reused; unknown identifications are skipped.
+- **Kiwi’s field notes:** your explorer pug shares sourced wildlife facts, cached in SQLite. A new confidently identified species triggers one background Luna web-search lookup against trusted wildlife sources. Facts, source links, and verification dates are reused; unknown identifications are skipped.
 
 **Cool photo ≠ new event.** Luna's `interesting_score` measures novelty against the previous observation. Repeated zebras can score low but still make a great archive highlight. Highlight labels explain animal abundance and variety; novelty scores remain in the details and alert logic.
 

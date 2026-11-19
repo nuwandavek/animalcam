@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict
 from .runner import Busy, Worker
 from .facts import FactWorker
 from .store import Store
+from .stats import summarize
 
 STATIC = Path(__file__).parent / "static"
 
@@ -63,7 +64,7 @@ def create_app(settings, worker=None, fact_worker=None):
         return FileResponse(STATIC / "index.html")
 
     @app.get("/assets/{name}", dependencies=[Depends(authorize)])
-    def assets(name: Literal["app.js", "style.css"]):
+    def assets(name: Literal["app.js", "style.css", "kiwi-explorer.webp", "charts.js", "vega.min.js", "vega-interpreter.min.js"]):
         return FileResponse(STATIC / name)
 
     @app.get("/api/state", dependencies=[Depends(authorize)])
@@ -89,6 +90,10 @@ def create_app(settings, worker=None, fact_worker=None):
     @app.get("/api/highlight", dependencies=[Depends(authorize)])
     def highlight(exclude_id: int | None = Query(None, ge=1)):
         return store.highlight(exclude_id)
+
+    @app.get("/api/stats", dependencies=[Depends(authorize)])
+    def stats(period: Literal["day", "week", "month"] = "day", cam: str | None = None):
+        return summarize(store, settings.cams(), period, cam)
 
     @app.get("/api/checks/{check_id}", dependencies=[Depends(authorize)])
     def detail(check_id: int):

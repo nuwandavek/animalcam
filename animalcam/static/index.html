@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f7">
+  <title>animalcam · Field journal</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Journal navigation">
+      <a class="brand" href="/" aria-label="animalcam home"><span class="brand-icon"><svg viewBox="0 0 40 32" aria-hidden="true"><path d="m5 20 5-13h6l3 10h2l3-10h6l5 13M14 7V4m12 3V4"/><circle cx="11" cy="21" r="8"/><circle cx="29" cy="21" r="8"/><path d="M8 21a3 3 0 0 1 3-3m15 3a3 3 0 0 1 3-3"/></svg></span>animalcam<span class="brand-period">.</span></a>
+      <button id="mobile-camera-guide" class="mobile-camera-guide" type="button">Add camera <span aria-hidden="true">＋</span></button>
+      <p class="sidebar-label">Your journal</p>
+      <nav class="journal-nav" aria-label="Quick filters">
+        <button class="side-nav active" data-view="all" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>All observations</button>
+        <button class="side-nav" data-view="interesting" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>Interesting</button>
+        <button class="side-nav" data-view="birds" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c0-5 6-4 7-8 1-3 5-4 7-1l3 1-3 2c0 5-4 8-9 8H3l3-3m4-1 3-3"/><path d="M16 9h.01"/></svg>Birdwatching</button>
+      </nav>
+      <div class="camera-heading"><p class="sidebar-label">Cameras</p><span id="camera-total" class="camera-total"></span></div>
+      <div id="camera-list" class="camera-list"><p class="sidebar-loading">Loading cameras…</p></div>
+      <button id="camera-guide" class="add-camera" type="button"><span aria-hidden="true">＋</span>Add a camera</button>
+      <div class="sidebar-bottom"><span class="schedule-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span><div><p class="schedule-label">Capture schedule</p><p id="schedule">Connecting…</p></div></div>
+    </aside>
+    <div class="workspace">
+      <header class="masthead"><div class="breadcrumb"><span>Your workspace</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg><strong>Field journal</strong></div><span id="connection" class="connection">Connecting</span></header>
+      <main>
+        <section class="journal-top" aria-labelledby="page-title">
+          <div><p class="eyebrow">A closer look at the wild</p><h1 id="page-title">Field journal<span class="title-dot">.</span></h1><p class="intro">Your captures. Their little adventures.</p></div>
+          <div class="run-controls"><button id="run" class="primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6 9.5 3h5L16 6h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3Z"/><circle cx="12" cy="13" r="4"/></svg><span id="run-label">Check now</span><span class="button-plus" aria-hidden="true">＋</span></button><p id="run-scope">All cameras</p></div>
+        </section>
+        <div id="run-status" class="run-status" role="status" aria-live="polite"></div>
+        <section id="journal" aria-label="Observation gallery">
+          <form id="filters" class="filters">
+            <div class="filter-toolbar"><div class="filter-picks">
+              <label class="select-field"><span class="sr-only">Camera</span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="4"/><path d="m17 10 4-3v10l-4-3"/></svg><select id="cam" name="cam"><option value="">All cameras</option></select></label>
+              <label class="select-field"><span class="sr-only">Species</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 14c-5 5 2 7 4 5 2 2 9 0 4-5-3-3-5-3-8 0Z"/><ellipse cx="5" cy="10" rx="2" ry="3"/><ellipse cx="10" cy="5" rx="2" ry="3"/><ellipse cx="16" cy="5" rx="2" ry="3"/><ellipse cx="20" cy="10" rx="2" ry="3"/></svg><select id="species" name="species"><option value="">All species</option></select></label>
+            </div><button id="filter-toggle" class="filter-button" type="button" aria-expanded="false" aria-controls="advanced-filters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Filters<span id="filter-badge" class="filter-badge" hidden></span></button></div>
+            <div id="advanced-filters" class="advanced-filters" hidden>
+              <label>From · UTC<input name="date_from" type="date" aria-label="From date, UTC"></label>
+              <label>To · UTC<input name="date_to" type="date" aria-label="To date, UTC"></label>
+              <label>Status<select name="status"><option value="">All checks</option><option value="ok">Analyzed</option><option value="offline">Offline</option><option value="error">Errors</option></select></label>
+            </div>
+            <div class="filter-bottom"><div class="toggles">
+              <label class="toggle"><input type="checkbox" name="interesting" value="true"><span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8L10 2Z"/></svg>Interesting</span></label>
+              <label class="toggle"><input type="checkbox" name="animals" value="true"><span>Animals present</span></label>
+              <label class="toggle"><input type="checkbox" name="group" value="bird"><span>Birds</span></label>
+              <button class="text-button" id="clear" type="button">Reset</button>
+            </div><span id="count" class="result-count" aria-live="polite"></span></div>
+          </form>
+          <p id="error" class="error" role="alert" hidden></p>
+          <div id="gallery" class="gallery" aria-label="Saved checks"></div>
+          <div id="empty" class="empty" hidden>
+            <div class="empty-art" aria-hidden="true"><svg viewBox="0 0 240 170"><ellipse class="art-shadow" cx="123" cy="146" rx="63" ry="8"/><path class="art-orbit" d="M32 92c-17-29 17-65 76-73s107 15 103 46-47 57-100 56S25 107 32 92Z"/><path class="art-spark" d="M184 25v16m-8-8h16M45 123v10m-5-5h10"/><g class="art-binoculars"><path class="art-body" d="m70 95 17-51q2-7 9-6h14l12 39h8l12-39h15q6-1 8 6l17 51"/><path class="art-bridge" d="M111 71h29v26h-29Z"/><circle class="art-ring" cx="88" cy="104" r="29"/><circle class="art-ring" cx="165" cy="104" r="29"/><circle class="art-lens" cx="88" cy="104" r="19"/><circle class="art-lens" cx="165" cy="104" r="19"/><path class="art-glint" d="M78 103a11 11 0 0 1 11-10m66 10a11 11 0 0 1 11-10"/></g><path class="art-bird" d="m34 48 8-4 8 6m140 63 7-4 8 4"/></svg></div>
+            <p class="eyebrow">Ready when you are</p><h2>Let's see who's out there.</h2><p id="empty-copy">Capture your first frame to start the journal.<br>Big cats, little birds, and everything in between.</p><button id="empty-run" class="empty-action" type="button">Capture a frame<span aria-hidden="true">＋</span></button>
+          </div>
+          <button id="more" class="more" type="button" hidden>Load more observations <span aria-hidden="true">＋</span></button>
+        </section>
+        <footer><span class="footer-brand">animalcam<span>●</span></span><span>Your captures, saved locally.</span><span id="model"></span></footer>
+      </main>
+    </div>
+  </div>
+  <dialog id="detail" class="detail-dialog" aria-labelledby="detail-title"><div class="detail-toolbar"><span class="eyebrow">Inside the frame</span><button id="close" class="close" aria-label="Close observation" type="button">✕</button></div><div id="detail-content"></div></dialog>
+  <dialog id="camera-help" class="camera-dialog" aria-labelledby="camera-help-title"><div class="detail-toolbar"><span class="eyebrow">Grow your collection</span><button id="camera-help-close" class="close" aria-label="Close camera instructions" type="button">✕</button></div><div class="camera-help-body"><h2 id="camera-help-title">Another window<br>into the wild.</h2><p>Add an entry to <code>data/cams.toml</code> using a unique camera ID. It will appear here automatically.</p><pre id="camera-snippet">[[cam]]
+id = "my-new-camera"
+name = "My new wildlife cam"
+url = "https://www.youtube.com/watch?v=VIDEO_ID"
+timezone = "Africa/Windhoek"</pre><button id="copy-config" class="primary" type="button">Copy camera config <span aria-hidden="true">＋</span></button></div></dialog>
+</body>
+</html>

@@ -1,0 +1,7 @@
+[[cam]]
+id = "namib-waterhole"
+name = "Namib Desert waterhole"
+url = "https://www.youtube.com/watch?v=ydYDqZQpim8"
+timezone = "Africa/Windhoek"
+
+# Add another [[cam]] block with a unique id to watch another stream.

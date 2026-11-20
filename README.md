@@ -19,6 +19,8 @@ ANIMALCAM_UID=$(id -u) ANIMALCAM_GID=$(id -g) docker compose up -d --build
 
 Open **http://localhost:8080**. Everything runs in one container. Images, observations, and API usage stay in **`./data`**, mounted at `/data`.
 
+Behind a host HTTPS proxy, set `ANIMALCAM_FORWARDED_ALLOW_IPS=127.0.0.1,<Docker gateway IP>` in `.env` so **Check now** recognizes the original HTTPS origin. Find the gateway with `docker inspect $(docker compose ps -q animalcam) --format '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}'`.
+
 Or run the image directly:
 
 ```bash

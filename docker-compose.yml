@@ -6,6 +6,9 @@ services:
     user: "${ANIMALCAM_UID:-1000}:${ANIMALCAM_GID:-1000}"
     restart: unless-stopped
     env_file: .env
+    # For a host reverse proxy, include its container-visible Docker gateway IP.
+    environment:
+      FORWARDED_ALLOW_IPS: "${ANIMALCAM_FORWARDED_ALLOW_IPS:-127.0.0.1}"
     ports:
       - "127.0.0.1:8080:8080"
     volumes:

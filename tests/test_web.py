@@ -2,6 +2,7 @@ import copy
 
 import pytest
 from fastapi.testclient import TestClient
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from animalcam.runner import Busy
 from animalcam.store import Store, utcnow
@@ -66,6 +67,28 @@ def test_missing_key_disables_manual_checks(settings):
     with TestClient(create_app(settings, FakeWorker(), FakeWorker())) as client:
         assert client.post("/api/run", json={}).status_code == 503
         assert client.get("/api/state").json()["configured"] is False
+
+
+@pytest.mark.parametrize("client_ip,origin,expected", [
+    ("172.20.0.1", "https://animalcam.example", 202),
+    ("172.20.0.1", "https://evil.example", 403),
+    ("203.0.113.5", "https://animalcam.example", 403),
+])
+def test_https_manual_checks_trust_only_configured_proxy(settings, client_ip, origin, expected):
+    worker = FakeWorker()
+    app = ProxyHeadersMiddleware(create_app(settings, worker, FakeWorker()),
+                                 trusted_hosts="127.0.0.1,172.20.0.1")
+    async def from_peer(scope, receive, send):
+        if scope["type"] == "http":
+            scope = {**scope, "client": (client_ip, 12345)}
+        await app(scope, receive, send)
+
+    with TestClient(from_peer) as client:
+        response = client.post("/api/run", json={}, headers={
+            "Host": "animalcam.example", "Origin": origin, "X-Forwarded-Proto": "https",
+        })
+        assert response.status_code == expected
+        assert bool(worker.pending) is (expected == 202)
 
 
 @pytest.mark.parametrize("score,count,names,confidence,expected", [

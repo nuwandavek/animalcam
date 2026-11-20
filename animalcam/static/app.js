@@ -215,11 +215,6 @@ function options(id, items, label) {
   select.value = selected;
 }
 function syncViews() {
-  const interesting = form.elements.interesting.checked, birds = form.elements.group.checked;
-  for (const button of document.querySelectorAll('[data-view]')) {
-    const active = button.dataset.view === 'all' ? !interesting && !birds : button.dataset.view === 'interesting' ? interesting : birds;
-    button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
-  }
   for (const button of document.querySelectorAll('.camera-item')) {
     const selected = button.dataset.cam === $('cam').value;
     button.classList.toggle('selected', selected); button.setAttribute('aria-pressed', String(selected));
@@ -235,6 +230,7 @@ function renderCameras() {
   if ($('camera-list').dataset.cameras === signature) return;
   $('camera-list').dataset.cameras = signature;
   $('camera-list').replaceChildren();
+  $('about-cameras').replaceChildren();
   for (const cam of appState.cams) {
     const button = el('button', 'camera-item'); button.type = 'button'; button.dataset.cam = cam.id;
     const initials = cam.name.split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase();
@@ -243,6 +239,9 @@ function renderCameras() {
     button.append(el('span', 'camera-avatar', initials), copy);
     button.addEventListener('click', () => { $('cam').value = cam.id; syncViews(); load(); loadStats(); });
     $('camera-list').append(button);
+    const link = el('a', '', `${cam.name} ↗`);
+    link.href = cam.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+    $('about-cameras').append(link);
   }
 }
 async function refreshState() {
@@ -256,10 +255,13 @@ async function refreshState() {
   $('connection').classList.toggle('busy', busy);
   $('run-status').classList.toggle('busy', busy);
   const cam = appState.cams.find(c => c.id === w.cam_id);
+  const blockedByYouTube = w.error && w.last_run?.some(run => run.error?.includes('YouTube bot check'));
+  const checkError = blockedByYouTube ? 'Live capture blocked by YouTube. Camera access needs attention; saved captures are still available.' : w.error;
   $('run-status').textContent = !appState.configured ? 'Add OPENAI_API_KEY to .env, then restart to enable checks.' :
     busy ? `Watching ${cam ? cam.name : 'all cameras'}. Capturing a frame and looking for wildlife…` :
-    w.error ? w.error : w.last_finished_at ? `Last check finished ${shortTime(w.last_finished_at)}.` : '';
+    checkError ? checkError : w.last_finished_at ? `Last check finished ${shortTime(w.last_finished_at)}.` : '';
   $('schedule').textContent = w.schedule_enabled ? `Every ${appState.interval_min} min${w.next_run_at ? ` · next ${new Date(w.next_run_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}` : ''}` : 'Manual checks · schedule paused';
+  $('about-interval').textContent = w.schedule_enabled ? `every ${appState.interval_min} minutes` : 'on demand (automatic checks are paused)';
   $('model').textContent = `${appState.cams.length} ${appState.cams.length === 1 ? 'camera' : 'cameras'} · ${appState.model}`;
   const costs = appState.costs;
   if (costs) {
@@ -338,17 +340,13 @@ $('filter-toggle').addEventListener('click', () => {
   const open = $('advanced-filters').hidden;
   $('advanced-filters').hidden = !open; $('filter-toggle').setAttribute('aria-expanded', String(open));
 });
-for (const button of document.querySelectorAll('[data-view]')) {
-  button.addEventListener('click', () => {
-    if (button.dataset.view === 'all') form.reset();
-    else {
-      form.elements.interesting.checked = button.dataset.view === 'interesting';
-      form.elements.group.checked = button.dataset.view === 'birds';
-      form.elements.animals.checked = false;
-    }
-    syncViews(); load(); loadStats();
-  });
-}
+$('about-open').addEventListener('click', () => $('about').showModal());
+$('about-close').addEventListener('click', () => $('about').close());
+$('about').addEventListener('click', e => {
+  if (e.target !== $('about')) return;
+  const rect = $('about').getBoundingClientRect();
+  if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) $('about').close();
+});
 $('empty-run').addEventListener('click', () => $('empty-run').dataset.action === 'clear' ? resetFilters() : $('run').click());
 $('camera-guide').addEventListener('click', () => $('camera-help').showModal());
 $('mobile-camera-guide').addEventListener('click', () => $('camera-help').showModal());
